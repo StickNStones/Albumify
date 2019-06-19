@@ -4,6 +4,7 @@ from resizeimage import resizeimage
 import math
 import urllib.request
 import musicbrainzngs
+from functools import reduce
 
 def singleAverage(inputFile, pixels):
     xwidth = 0
@@ -87,11 +88,25 @@ def musicBrainz(artistName, aDict):
     someID = musicbrainzngs.search_artists(artistName).get('artist-list')[0].get('id')
     allTapes = musicbrainzngs.get_artist_by_id(someID, 'release-groups').get('artist').get('release-group-list')
 
+  #  print(allTapes)
+
     for key in allTapes:
         if key.get('secondary-type-list') is None:
-            image = Image.open(urllib.request.urlopen(musicbrainzngs.get_release_group_image_list(key.get('id')).get('images')[0].get('thumbnails').get('small')))
-            albumName = key.get('title')
-            aDict[albumName] = [pixelAverage(image), image]
+            try:
+                image = Image.open(urllib.request.urlopen(musicbrainzngs.get_release_group_image_list(key.get('id')).get('images')[0].get('thumbnails').get('small')))
+                albumName = key.get('title')
+                aDict[albumName] = [pixelAverage(image), image]
+            except:
+                pass
+        
+        elif key.get('secondary-type-list')[0] == 'Compilation':
+          #  print(key.get('secondary-type-list')[0])
+            try:
+                image = Image.open(urllib.request.urlopen(musicbrainzngs.get_release_group_image_list(key.get('id')).get('images')[0].get('thumbnails').get('small')))
+                albumName = key.get('title')
+                aDict[albumName] = [pixelAverage(image), image]
+            except:
+                pass
 
 
 def listAverages(image, pixels):
@@ -107,7 +122,6 @@ def listAverages(image, pixels):
     z = 0
     k = 0
     j = 0
-    colourIndex = 1
 
     count = 0
     sumCountx = 0
@@ -132,9 +146,6 @@ def listAverages(image, pixels):
                         #print(pix[i + (j*pixels), r + (k * pixels)])
                         #pix[i + (j*pixels), r + (k * pixels)] = (pix[i + (j*pixels), r + (k * pixels)][0], pix[i + (j*pixels), r + (k * pixels)][2], pix[i + (j*pixels), r + (k * pixels)][1])
                         pixelLoc = i + (j*pixels), r + (k * pixels)
-                        #if (colourIndex == 1):
-                        #    pix[pixelLoc] = (255,255,0)
-                        #    colourIndex = 0
 
                         count = count + 1
                         sumCountx = sumCountx + pix[pixelLoc][0]
@@ -157,71 +168,72 @@ def listAverages(image, pixels):
                         pix[ie + (j*pixels), re + (k * pixels)] = average
                     re = re + 1
                 ie = ie + 1
-            #if colourIndex == 1:
-            #    colourIndex = 0
-            #else:
-            #    colourIndex = 1 
             k = k + 1
         j = j + 1
     print(z)
-#   print(averages)
-#  print(len(averages))
-
-
 
     image.show()
     #  result.save('out.bmp')
     return averages
 
-
-def main():
-    pixels = int(sys.argv[2])
-    inputFile = sys.argv[1]
+def printFactors(num):
+    step = 2 if num % 2 else 1
+    vals = []
+    for i in range(1, int(math.sqrt(num))+1, step):
+        if num % i == 0:
+            vals.append(i)
+            print(i, end=" ")
+    i = len(vals)-1
+    while i > 0:
+        print(num//vals[i], end=" ")
+        i = i - 1
+        
+    
     
 
-    # Top one is the drawn image
-    #artFile1 = open(inputFile, 'r+b')
-    #artFileImage1 = Image.open(artFile1)
-    #artFileImage1 = resizeimage.resize_cover(artFileImage1, [1152,1152])
-    #artFileImage1.show()
+
+
+def main():
+    #pixels = int(sys.argv[2])
+    inputFile = sys.argv[1]
 
     averageDict = {}
 
-    # The final
-    # currently hard code the size of image you want result to be. 
-    # Note the end pixel sizes will need to reflect the size
-    # 
-   # result = Image.new('RGB', (1152, 1152))
+    print("Enter artist names to use their album art as pixels!")
+    inputString = []
+    while len(inputString) == 0 or inputString[-1] != "":
+        inputString.append(input())
 
     with open(inputFile, 'r+b') as f:
         with Image.open(f) as image:
             xwidth, yheight = image.size
-            result = Image.new('RGB', (xwidth, xwidth))
-            image = resizeimage.resize_cover(image, [xwidth,xwidth])
+            side = min(xwidth,yheight)
+            print("Optional pixel sizes:")
+            printFactors(side)
+            pixels = int(input("\nWhat size of pixel do you want to use? ")) 
+
+            result = Image.new('RGB', (side, side))
+            image = resizeimage.resize_cover(image, [side,side])
 
             print(len(sys.argv))
-            i = 3
-            while i < len(sys.argv):
-                averagesMainImage = listAverages(image, pixels)
-                musicBrainz(sys.argv[i], averageDict)
+            averagesMainImage = listAverages(image, pixels)
+
+            for item in inputString:
+                musicBrainz(item, averageDict)
                 i = i + 1
 
             for key in list(averageDict):
                 if (averageDict.get(key)[0][0] == -1):
                     averageDict.pop(key)
 
-            # @@@@ THIS IS ONLY CUZS THE NEW SIZE> MAKE STUFF DYNAMIC 
-
             # sqrt(255^2 * 3) which is max distance should always be less than 1000
-            minDist = 1000
+            minDist = 10000
             minName = None
             i = 0
             while i < len(averagesMainImage):
-               # print(averagesMainImage[i])
 
                 r = 0
                 minDist = 1000
-                #while r < len(averageDict):
                 for key, value in averageDict.items():
                     if (value[0][0] != -1):
                         distance = math.sqrt((value[0][0]-averagesMainImage[i][0])**2 + (value[0][1]-averagesMainImage[i][1])**2 + (value[0][2]-averagesMainImage[i][2])**2)
@@ -233,8 +245,7 @@ def main():
 
                     r = r + 1
 
-                xbox, ybox = divmod(i, xwidth//pixels)
-               # print(ybox, xbox)
+                xbox, ybox = divmod(i, side//pixels)
                 
                 result.paste(im=resizeimage.resize_cover(averageDict.get(minName)[1], [pixels,pixels]), box=(xbox*pixels,ybox*pixels))
 
