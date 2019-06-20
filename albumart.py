@@ -4,48 +4,6 @@ from resizeimage import resizeimage
 import math
 import urllib.request
 import musicbrainzngs
-from functools import reduce
-
-def singleAverage(inputFile, pixels):
-    xwidth = 0
-    yheight = 0
-    average = []
-    with open(inputFile, 'r+b') as f:
-        with Image.open(f) as image:
-
-            # artFileImage3 = resizeimage.resize_cover(artFileImage3, [184,184])
-
-            image = resizeimage.resize_cover(image, [184,184])
-          #  print(image.size)
-            xwidth = image.size[0]
-            yheight = image.size[1]
-            pix = image.load()
-            i = 0
-            r = 0
-
-            average = (0,0,0)
-            sumCountx = 0
-            sumCounty = 0
-            sumCountz = 0
-            count = 0
-
-            while i < xwidth:
-                r = 0 
-                while r < yheight:
-                    #print(pix[i,r])
-                    try:
-                        sumCountx = sumCountx + pix[i,r][0]
-                        sumCounty = sumCounty + pix[i,r][1]
-                        sumCountz = sumCountz + pix[i,r][2]
-                        count = count + 1
-                    except:
-                        return (-1,-1,-1)
-
-                    r = r + 1
-                i = i + 1
-            average = (sumCountx//count, sumCounty//count, sumCountz//count)
-
-    return average
 
 def pixelAverage(image):
     xwidth = 0
@@ -68,7 +26,6 @@ def pixelAverage(image):
     while i < xwidth:
         r = 0 
         while r < yheight:
-            #print(pix[i,r])
             try:
                 sumCountx = sumCountx + pix[i,r][0]
                 sumCounty = sumCounty + pix[i,r][1]
@@ -91,29 +48,19 @@ def musicBrainz(artistName, aDict):
   #  print(allTapes)
 
     for key in allTapes:
-        if key.get('secondary-type-list') is None:
+        if key.get('secondary-type-list') is None or key.get('secondary-type-list')[0] == 'Compilation':
             try:
                 image = Image.open(urllib.request.urlopen(musicbrainzngs.get_release_group_image_list(key.get('id')).get('images')[0].get('thumbnails').get('small')))
                 albumName = key.get('title')
                 aDict[albumName] = [pixelAverage(image), image]
             except:
                 pass
-        
-        elif key.get('secondary-type-list')[0] == 'Compilation':
-          #  print(key.get('secondary-type-list')[0])
-            try:
-                image = Image.open(urllib.request.urlopen(musicbrainzngs.get_release_group_image_list(key.get('id')).get('images')[0].get('thumbnails').get('small')))
-                albumName = key.get('title')
-                aDict[albumName] = [pixelAverage(image), image]
-            except:
-                pass
-
 
 def listAverages(image, pixels):
     xwidth = 0
     yheight = 0
 
-    print(image.size)
+  #  print(image.size)
     xwidth = image.size[0]
     yheight = image.size[1]
     pix = image.load()
@@ -143,8 +90,6 @@ def listAverages(image, pixels):
                 r = 0
                 while (r + (k * pixels) < pixels*(k+1)):
                     if ( i + (j*pixels) < yheight) and (r + (k * pixels) < xwidth):
-                        #print(pix[i + (j*pixels), r + (k * pixels)])
-                        #pix[i + (j*pixels), r + (k * pixels)] = (pix[i + (j*pixels), r + (k * pixels)][0], pix[i + (j*pixels), r + (k * pixels)][2], pix[i + (j*pixels), r + (k * pixels)][1])
                         pixelLoc = i + (j*pixels), r + (k * pixels)
 
                         count = count + 1
@@ -153,7 +98,6 @@ def listAverages(image, pixels):
                         sumCountz = sumCountz + pix[pixelLoc][2]
 
                         z = z + 1
-                    # print("r is =" + str(r) + " i is = " + str(i))
                     r = r + 1  
                 atuple = (sumCountx//count, sumCounty//count, sumCountz//count)
                 average = atuple
@@ -188,13 +132,8 @@ def printFactors(num):
         print(num//vals[i], end=" ")
         i = i - 1
         
-    
-    
-
-
 
 def main():
-    #pixels = int(sys.argv[2])
     inputFile = sys.argv[1]
 
     averageDict = {}
@@ -203,11 +142,14 @@ def main():
     inputString = []
     while len(inputString) == 0 or inputString[-1] != "":
         inputString.append(input())
+    inputString.pop()
 
     with open(inputFile, 'r+b') as f:
         with Image.open(f) as image:
             xwidth, yheight = image.size
             side = min(xwidth,yheight)
+            print(side)
+
             print("Optional pixel sizes:")
             printFactors(side)
             pixels = int(input("\nWhat size of pixel do you want to use? ")) 
@@ -218,9 +160,10 @@ def main():
             print(len(sys.argv))
             averagesMainImage = listAverages(image, pixels)
 
+            print(inputString)
+
             for item in inputString:
                 musicBrainz(item, averageDict)
-                i = i + 1
 
             for key in list(averageDict):
                 if (averageDict.get(key)[0][0] == -1):
@@ -240,19 +183,16 @@ def main():
 
                     if distance < minDist:
                         minDist = distance
-                        #print("distance is " + str(distance), key)
                         minName = key
 
                     r = r + 1
 
-                xbox, ybox = divmod(i, side//pixels)
+                widthBox, heightBox = divmod(i, side//pixels)
                 
-                result.paste(im=resizeimage.resize_cover(averageDict.get(minName)[1], [pixels,pixels]), box=(xbox*pixels,ybox*pixels))
+                result.paste(im=resizeimage.resize_cover(averageDict.get(minName)[1], [pixels,pixels]), box=(widthBox*pixels,heightBox*pixels))
 
                 i = i + 1
             result.show()
             
-    
-
 if __name__ == "__main__":
     main()
