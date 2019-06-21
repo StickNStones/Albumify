@@ -9,7 +9,7 @@ Program takes each album covert art, gets the average pixel colour to then be us
 
 To run add file name of picture to modify in command line
 
-''py .\albumart.py album.jpg''
+``py .\albumart.py album.jpg``
 
 
 
